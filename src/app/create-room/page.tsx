@@ -7,14 +7,6 @@ import { useAuth } from '@/lib/firebase-auth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    const v = c === 'x' ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
-
 export default function CreateRoom() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -58,23 +50,30 @@ export default function CreateRoom() {
     try {
       setLoading(true)
 
-      const roomId = generateUUID()
+      if (!user?.uid) {
+        alert('Usuário não autenticado')
+        return
+      }
 
       const response = await fetch(`${API_URL}/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: roomId,
           name: formData.name,
+          hostId: user.uid,
+          hostName: user.displayName || user.email || 'Usuário',
           maxCards: formData.maxCards,
           rules: formData.rules,
-          ownerId: user?.uid,
         }),
       })
 
-      if (!response.ok) throw new Error('Erro ao criar sala')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Erro ao criar sala')
+      }
 
-      router.push(`/rooms/${roomId}`)
+      const room = await response.json()
+      router.push(`/room/${room.code}`)
     } catch (error) {
       console.error(error)
       alert('Erro ao criar sala')
