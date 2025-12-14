@@ -126,8 +126,8 @@ export default function CreateRoom() {
               value={formData.maxCards}
               onChange={(e) => setFormData(prev => ({ ...prev, maxCards: parseInt(e.target.value) || 10 }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              min="1"
-              max="50"
+              
+              
               required
             />
           </div>
