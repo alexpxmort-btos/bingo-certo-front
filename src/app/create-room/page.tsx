@@ -90,32 +90,43 @@ export default function CreateRoom() {
           <div>
             <label className="block text-sm font-medium mb-1">Nome da sala</label>
             <input
-              type="text"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
-            />
-          </div>
+                    type="checkbox"
+                    checked={formData.rules.includes(rule)}
+                    onChange={(e) => {
+                      // Se marcar Cartela Cheia, desmarca as outras
+                      if (rule === 'full' && e.target.checked) {
+                        setFormData({
+                          ...formData,
+                          rules: ['full'],
+                        })
+                        return
+                      }
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Quantidade de cartelas
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={formData.maxCards}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  maxCards:
-                    e.target.value === '' ? '' : Number(e.target.value),
-                })
-              }
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
-            />
+                      // Se tentar marcar Linha ou Coluna enquanto Full estiver ativo
+                      if (rule !== 'full' && formData.rules.includes('full')) {
+                        setFormData({
+                          ...formData,
+                          rules: e.target.checked ? [rule] : [],
+                        })
+                        return
+                      }
+
+                      // Comportamento normal
+                      setFormData({
+                        ...formData,
+                        rules: e.target.checked
+                          ? [...formData.rules, rule]
+                          : formData.rules.filter((r) => r !== rule),
+                      })
+                    }}
+                    className="h-4 w-4"
+                  />
+                  {rule === 'line' && 'Linha'}
+                  {rule === 'column' && 'Coluna'}
+                  {rule === 'full' && 'Cartela cheia'}
+                </label>
+              ))}
+            </div>
           </div>
 
           <button
@@ -137,3 +148,4 @@ export default function CreateRoom() {
     </div>
   )
     }
+            
