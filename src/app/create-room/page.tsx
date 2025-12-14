@@ -20,7 +20,6 @@ export default function CreateRoom() {
   const { user, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
 
-  // IMPORTANTE: maxCards aceita number ou string vazia
   const [formData, setFormData] = useState<{
     name: string
     maxCards: number | ''
@@ -36,22 +35,6 @@ export default function CreateRoom() {
       router.push('/login')
     }
   }, [user, authLoading, router])
-
-  function handleChangeName(e: React.ChangeEvent<HTMLInputElement>) {
-    setFormData({
-      ...formData,
-      name: e.target.value,
-    })
-  }
-
-  function handleChangeMaxCards(e: React.ChangeEvent<HTMLInputElement>) {
-    const value = e.target.value
-
-    setFormData({
-      ...formData,
-      maxCards: value === '' ? '' : Number(value),
-    })
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -73,9 +56,7 @@ export default function CreateRoom() {
 
       const response = await fetch(`${API_URL}/rooms`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: roomId,
           name: formData.name,
@@ -85,9 +66,7 @@ export default function CreateRoom() {
         }),
       })
 
-      if (!response.ok) {
-        throw new Error('Erro ao criar sala')
-      }
+      if (!response.ok) throw new Error('Erro ao criar sala')
 
       router.push(`/rooms/${roomId}`)
     } catch (error) {
@@ -99,40 +78,62 @@ export default function CreateRoom() {
   }
 
   if (authLoading) {
-    return <p>Carregando...</p>
+    return <p className="text-center mt-10">Carregando...</p>
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '0 auto' }}>
-      <h1>Criar Sala</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="w-full max-w-md bg-white p-6 rounded-xl shadow-lg">
+        <h1 className="text-2xl font-bold mb-6 text-center">Criar Sala</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Nome da sala</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={handleChangeName}
-            required
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Nome da sala</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
+            />
+          </div>
 
-        <div>
-          <label>Quantidade de cartelas</label>
-          <input
-            type="number"
-            min={1}
-            value={formData.maxCards}
-            onChange={handleChangeMaxCards}
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Quantidade de cartelas
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={formData.maxCards}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  maxCards:
+                    e.target.value === '' ? '' : Number(e.target.value),
+                })
+              }
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
+            />
+          </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Criando...' : 'Criar sala'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {loading ? 'Criando...' : 'Criar sala'}
+          </button>
+        </form>
 
-      <Link href="/">Voltar</Link>
+        <Link
+          href="/"
+          className="block text-center text-sm text-blue-600 mt-4 hover:underline"
+        >
+          Voltar
+        </Link>
+      </div>
     </div>
   )
-}
+    }
