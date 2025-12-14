@@ -20,6 +20,7 @@ export default function CreateRoom() {
   const { user, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
 
+  // maxCards aceita number ou string vazia (corrige bug do input)
   const [formData, setFormData] = useState<{
     name: string
     maxCards: number | ''
@@ -46,6 +47,11 @@ export default function CreateRoom() {
 
     if (formData.maxCards === '' || formData.maxCards <= 0) {
       alert('Informe a quantidade de cartelas')
+      return
+    }
+
+    if (formData.rules.length === 0) {
+      alert('Selecione pelo menos uma regra')
       return
     }
 
@@ -84,48 +90,108 @@ export default function CreateRoom() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-md bg-white p-6 rounded-xl shadow-lg">
-        <h1 className="text-2xl font-bold mb-6 text-center">Criar Sala</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">
+          Criar Sala
+        </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Nome */}
           <div>
-            <label className="block text-sm font-medium mb-1">Nome da sala</label>
+            <label className="block text-sm font-medium mb-1">
+              Nome da sala
+            </label>
             <input
-                    type="checkbox"
-                    checked={formData.rules.includes(rule)}
-                    onChange={(e) => {
-                      // Se marcar Cartela Cheia, desmarca as outras
-                      if (rule === 'full' && e.target.checked) {
+              type="text"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
+            />
+          </div>
+
+          {/* Quantidade de cartelas */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Quantidade de cartelas
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={formData.maxCards}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  maxCards:
+                    e.target.value === ''
+                      ? ''
+                      : Number(e.target.value),
+                })
+              }
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:border-blue-500"
+            />
+          </div>
+
+          {/* Regras */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Regras da sala
+            </label>
+
+            <div className="space-y-2">
+              {['line', 'column', 'full'].map((rule) => {
+                const isChecked =
+                  formData.rules.includes(rule)
+
+                return (
+                  <label
+                    key={rule}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        // Cartela cheia → exclusiva
+                        if (rule === 'full' && e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            rules: ['full'],
+                          })
+                          return
+                        }
+
+                        // Linha ou Coluna → remove Cartela cheia
+                        if (rule !== 'full' && e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            rules: [
+                              ...formData.rules.filter(
+                                (r) => r !== 'full'
+                              ),
+                              rule,
+                            ],
+                          })
+                          return
+                        }
+
+                        // Desmarcar
                         setFormData({
                           ...formData,
-                          rules: ['full'],
+                          rules: formData.rules.filter(
+                            (r) => r !== rule
+                          ),
                         })
-                        return
-                      }
+                      }}
+                      className="h-4 w-4"
+                    />
 
-                      // Se tentar marcar Linha ou Coluna enquanto Full estiver ativo
-                      if (rule !== 'full' && formData.rules.includes('full')) {
-                        setFormData({
-                          ...formData,
-                          rules: e.target.checked ? [rule] : [],
-                        })
-                        return
-                      }
-
-                      // Comportamento normal
-                      setFormData({
-                        ...formData,
-                        rules: e.target.checked
-                          ? [...formData.rules, rule]
-                          : formData.rules.filter((r) => r !== rule),
-                      })
-                    }}
-                    className="h-4 w-4"
-                  />
-                  {rule === 'line' && 'Linha'}
-                  {rule === 'column' && 'Coluna'}
-                  {rule === 'full' && 'Cartela cheia'}
-                </label>
-              ))}
+                    {rule === 'line' && 'Linha'}
+                    {rule === 'column' && 'Coluna'}
+                    {rule === 'full' && 'Cartela cheia'}
+                  </label>
+                )
+              })}
             </div>
           </div>
 
@@ -147,5 +213,4 @@ export default function CreateRoom() {
       </div>
     </div>
   )
-    }
-            
+                          }
