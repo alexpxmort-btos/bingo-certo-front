@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getSocket, disconnectSocket } from '@/lib/socket'
 import { useAuth } from '@/lib/firebase-auth'
@@ -70,6 +70,7 @@ export default function RoomPage() {
     return () => {
       cleanupSocket()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, visitorId, user?.uid])
 
   const loadRoom = async () => {

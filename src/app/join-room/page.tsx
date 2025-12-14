@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -14,7 +14,7 @@ function generateUUID(): string {
   });
 }
 
-export default function JoinRoom() {
+function JoinRoomForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const roomCode = searchParams.get('code')
@@ -61,6 +61,52 @@ export default function JoinRoom() {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+          Código da Sala
+        </label>
+        <input
+          type="text"
+          id="code"
+          value={formData.code}
+          onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase"
+          placeholder="ABC123"
+          required
+          maxLength={6}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-2">
+          Seu Apelido
+        </label>
+        <input
+          type="text"
+          id="nickname"
+          value={formData.nickname}
+          onChange={(e) => setFormData(prev => ({ ...prev, nickname: e.target.value }))}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          placeholder="Ex: João"
+          required
+          maxLength={20}
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? 'Entrando...' : 'Entrar na Sala'}
+      </button>
+    </form>
+  )
+}
+
+export default function JoinRoom() {
+  return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <Link href="/" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
@@ -71,49 +117,20 @@ export default function JoinRoom() {
           Entrar em uma Sala
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
-              Código da Sala
-            </label>
-            <input
-              type="text"
-              id="code"
-              value={formData.code}
-              onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase"
-              placeholder="ABC123"
-              required
-              maxLength={6}
-            />
+        <Suspense fallback={
+          <div className="space-y-6">
+            <div className="animate-pulse">
+              <div className="h-10 bg-gray-200 rounded-lg mb-4"></div>
+              <div className="h-10 bg-gray-200 rounded-lg mb-4"></div>
+              <div className="h-12 bg-gray-200 rounded-lg"></div>
+            </div>
           </div>
-
-          <div>
-            <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-2">
-              Seu Apelido
-            </label>
-            <input
-              type="text"
-              id="nickname"
-              value={formData.nickname}
-              onChange={(e) => setFormData(prev => ({ ...prev, nickname: e.target.value }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="Ex: João"
-              required
-              maxLength={20}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Entrando...' : 'Entrar na Sala'}
-          </button>
-        </form>
+        }>
+          <JoinRoomForm />
+        </Suspense>
       </div>
     </main>
   )
 }
+
 
