@@ -61,7 +61,7 @@ export default function RoomPage() {
     winnerName: '',
     winnerId: '',
   })
-  const [winningCells, setWinningCells] = useState<{ row?: number; col?: number; diagonal?: 'main' | 'anti' | null; full?: boolean } | null>(null)
+  const [winningCells, setWinningCells] = useState<{ row?: number; col?: number; full?: boolean } | null>(null)
 
   useEffect(() => {
     loadRoom()
@@ -391,35 +391,6 @@ export default function RoomPage() {
       }
     }
     
-    // Verificar diagonais
-    if (rules.includes('diagonal')) {
-      // Diagonal principal (0,0 -> 4,4)
-      let mainDiagonalComplete = true
-      for (let i = 0; i < 5; i++) {
-        if (!card.cells[i] || !card.cells[i][i] || !card.cells[i][i].marked) {
-          mainDiagonalComplete = false
-          break
-        }
-      }
-      if (mainDiagonalComplete) {
-        setWinningCells({ diagonal: 'main' })
-        return
-      }
-      
-      // Diagonal secundária (0,4 -> 4,0)
-      let antiDiagonalComplete = true
-      for (let i = 0; i < 5; i++) {
-        if (!card.cells[i] || !card.cells[i][4 - i] || !card.cells[i][4 - i].marked) {
-          antiDiagonalComplete = false
-          break
-        }
-      }
-      if (antiDiagonalComplete) {
-        setWinningCells({ diagonal: 'anti' })
-        return
-      }
-    }
-    
     // Se nenhuma regra foi encontrada, limpar
     setWinningCells(null)
   }
@@ -672,9 +643,7 @@ export default function RoomPage() {
                   const isWinningCell = winningCells && (
                     winningCells.full ||
                     winningCells.row === i ||
-                    winningCells.col === j ||
-                    (winningCells.diagonal === 'main' && i === j) ||
-                    (winningCells.diagonal === 'anti' && i === 4 - j)
+                    winningCells.col === j
                   )
                   
                   return (
@@ -701,18 +670,6 @@ export default function RoomPage() {
                           {winningCells.col === j && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <div className="h-full w-1 bg-red-600 shadow-lg"></div>
-                            </div>
-                          )}
-                          {/* Risco diagonal principal */}
-                          {winningCells.diagonal === 'main' && i === j && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="w-full h-1 bg-red-600 transform rotate-45 origin-center shadow-lg"></div>
-                            </div>
-                          )}
-                          {/* Risco diagonal secundária */}
-                          {winningCells.diagonal === 'anti' && i === 4 - j && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="w-full h-1 bg-red-600 transform -rotate-45 origin-center shadow-lg"></div>
                             </div>
                           )}
                         </>
@@ -771,8 +728,6 @@ export default function RoomPage() {
                     {winningCells.full && 'Cartela Cheia'}
                     {winningCells.row !== undefined && `Linha ${winningCells.row + 1}`}
                     {winningCells.col !== undefined && `Coluna ${winningCells.col + 1}`}
-                    {winningCells.diagonal === 'main' && 'Diagonal Principal'}
-                    {winningCells.diagonal === 'anti' && 'Diagonal Secundária'}
                   </p>
                 )}
               </div>
