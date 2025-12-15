@@ -62,6 +62,9 @@ export default function RoomPage() {
     winnerId: '',
   })
   const [winningCells, setWinningCells] = useState<{ row?: number; col?: number; full?: boolean } | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [drawingNumber, setDrawingNumber] = useState<number | null>(null)
+  const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     loadRoom()
@@ -501,7 +504,37 @@ export default function RoomPage() {
   }
 
   const handleDrawNumber = async () => {
+    if (isDrawing) return
+    
+    setIsDrawing(true)
+    setDrawingNumber(null)
+    
+    // Limpar interval anterior se existir
+    if (animationIntervalRef.current) {
+      clearInterval(animationIntervalRef.current)
+    }
+    
+    // Animar por 2-3 segundos mostrando números aleatórios
+    const animationDuration = 2500
+    const startTime = Date.now()
+    animationIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      if (elapsed >= animationDuration) {
+        if (animationIntervalRef.current) {
+          clearInterval(animationIntervalRef.current)
+          animationIntervalRef.current = null
+        }
+        return
+      }
+      // Gerar número aleatório entre 1 e 75
+      const randomNum = Math.floor(Math.random() * 75) + 1
+      setDrawingNumber(randomNum)
+    }, 100) // Atualizar a cada 100ms
+    
     try {
+      // Aguardar um pouco antes de fazer a requisição
+      await new Promise(resolve => setTimeout(resolve, animationDuration))
+      
       const response = await fetch(`${API_URL}/game/${roomCode}/draw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -512,14 +545,34 @@ export default function RoomPage() {
         const error = await response.json()
         console.error('Erro ao sortear número:', error)
         alert(error.message || 'Erro ao sortear número')
+        setIsDrawing(false)
+        setDrawingNumber(null)
+        if (animationIntervalRef.current) {
+          clearInterval(animationIntervalRef.current)
+          animationIntervalRef.current = null
+        }
         return
       }
       
       const data = await response.json()
       console.log('Número sorteado:', data)
+      
+      // Mostrar o número sorteado por um momento antes de esconder
+      setDrawingNumber(data.number)
+      setTimeout(() => {
+        setIsDrawing(false)
+        setDrawingNumber(null)
+      }, 1000)
     } catch (error: any) {
       console.error('Erro ao sortear número:', error)
       alert('Erro ao sortear número. Verifique se o jogo está ativo.')
+      setIsDrawing(false)
+      setDrawingNumber(null)
+    } finally {
+      if (animationIntervalRef.current) {
+        clearInterval(animationIntervalRef.current)
+        animationIntervalRef.current = null
+      }
     }
   }
 
@@ -599,9 +652,10 @@ export default function RoomPage() {
           {game && isHost && !game.isFinished && (
             <button
               onClick={handleDrawNumber}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
+              disabled={isDrawing}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sortear Número
+              {isDrawing ? 'Sorteando...' : 'Sortear Número'}
             </button>
           )}
         </div>
@@ -637,6 +691,17 @@ export default function RoomPage() {
                 🎉 BINGO!
               </button>
             </div>
+            {/* Cabeçalho B I N G O */}
+            <div className="grid grid-cols-5 gap-2 mb-2">
+              {['B', 'I', 'N', 'G', 'O'].map((letter, idx) => (
+                <div
+                  key={letter}
+                  className="aspect-square flex items-center justify-center rounded-lg font-bold text-2xl bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md"
+                >
+                  {letter}
+                </div>
+              ))}
+            </div>
             <div className="grid grid-cols-5 gap-2 relative">
               {myCard.cells.map((row, i) =>
                 row.map((cell, j) => {
@@ -645,19 +710,24 @@ export default function RoomPage() {
                     winningCells.row === i ||
                     winningCells.col === j
                   )
+                  const isCenter = i === 2 && j === 2
                   
                   return (
                     <div
                       key={`${i}-${j}`}
                       className={`aspect-square flex items-center justify-center rounded-lg font-semibold text-lg relative overflow-hidden ${
-                        cell.marked
+                        isCenter
+                          ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white font-bold'
+                          : cell.marked
                           ? isWinningCell
                             ? 'bg-yellow-500 text-white'
                             : 'bg-green-500 text-white'
                           : 'bg-gray-200 text-gray-800'
                       }`}
                     >
-                      <span className="relative z-10">{cell.number}</span>
+                      <span className="relative z-10">
+                        {isCenter ? 'FREE' : cell.number}
+                      </span>
                       {isWinningCell && !winningCells.full && (
                         <>
                           {/* Risco horizontal para linha */}
@@ -698,6 +768,34 @@ export default function RoomPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Animação de Sorteio */}
+      {isDrawing && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center">
+            <div className="mb-6">
+              <div className="relative w-32 h-32 mx-auto mb-4">
+                {/* Bolinhas girando */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '0.5s' }}></div>
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">Sorteando...</h2>
+              {drawingNumber && (
+                <div className="text-6xl font-bold text-blue-600 animate-pulse">
+                  {drawingNumber}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Vencedor */}
       {winnerModal.show && (

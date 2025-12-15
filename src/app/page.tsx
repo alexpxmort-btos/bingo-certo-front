@@ -26,6 +26,12 @@ export default function Home() {
           >
             Entrar em uma Sala
           </Link>
+          <Link
+            href="/scanner"
+            className="px-8 py-4 bg-green-600 text-white rounded-lg font-semibold text-lg hover:bg-green-700 transition-colors shadow-lg"
+          >
+            📷 Scanner de Cartela
+          </Link>
         </div>
 
         <div className="mt-16 p-6 bg-white rounded-lg shadow-md">
