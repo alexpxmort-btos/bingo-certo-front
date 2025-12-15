@@ -19,6 +19,9 @@ export default function ScannerPage() {
   const [error, setError] = useState<string | null>(null)
   const [scannedCard, setScannedCard] = useState<CardCell[][] | null>(null)
 
+  // Controle
+  const [isConfirmed, setIsConfirmed] = useState(false)
+
   // Modal edição
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editValue, setEditValue] = useState('')
@@ -31,6 +34,7 @@ export default function ScannerPage() {
     setSelectedFile(file)
     setScannedCard(null)
     setError(null)
+    setIsConfirmed(false)
 
     const reader = new FileReader()
     reader.onloadend = () => setPreview(reader.result as string)
@@ -59,6 +63,7 @@ export default function ScannerPage() {
       )
 
       setScannedCard(card)
+      setIsConfirmed(false)
     } catch {
       setError('Erro ao escanear a cartela')
     } finally {
@@ -71,12 +76,13 @@ export default function ScannerPage() {
     setPreview(null)
     setScannedCard(null)
     setError(null)
+    setIsConfirmed(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // 🔵 Modal helpers
+  // Modal helpers
   const openEditModal = (row: number, col: number, value: number) => {
-    if (row === 2 && col === 2) return // centro não edita
+    if (row === 2 && col === 2) return
     setEditingCell({ row, col })
     setEditValue(value === 0 ? '' : String(value))
     setIsModalOpen(true)
@@ -85,6 +91,7 @@ export default function ScannerPage() {
   const saveEdit = () => {
     if (!editingCell || !scannedCard) return
     const num = Number(editValue)
+
     if (isNaN(num) || num < 1 || num > 99) {
       alert('Número inválido')
       return
@@ -105,6 +112,13 @@ export default function ScannerPage() {
     setEditValue('')
   }
 
+  const clearMarks = () => {
+    if (!scannedCard) return
+    setScannedCard(prev =>
+      prev!.map(row => row.map(cell => ({ ...cell, marked: false })))
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -118,16 +132,24 @@ export default function ScannerPage() {
 
           {error && <div className="bg-red-100 p-4 rounded mb-4">{error}</div>}
 
-          <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handleFileSelect} />
+          {/* INPUT COM SUPORTE A CÂMERA */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileSelect}
+          />
 
           <button
             onClick={() => fileInputRef.current?.click()}
             className="px-6 py-3 bg-blue-600 text-white rounded"
           >
-            Escolher imagem
+            Tirar foto / Escolher imagem
           </button>
 
-          {preview && <img src={preview} className="mt-4 rounded" />}
+          {preview && <img src={preview} className="mt-4 rounded max-h-96 mx-auto" />}
 
           {selectedFile && !scannedCard && (
             <button
@@ -153,34 +175,73 @@ export default function ScannerPage() {
                     return (
                       <button
                         key={`${i}-${j}`}
-                        onClick={() => openEditModal(i, j, cell.number)}
-                        className={`aspect-square rounded font-bold ${
+                        onClick={() => {
+                          if (isCenter) return
+
+                          if (!isConfirmed) {
+                            openEditModal(i, j, cell.number)
+                          } else {
+                            setScannedCard(prev =>
+                              prev!.map((r, ri) =>
+                                r.map((c, ci) =>
+                                  ri === i && ci === j
+                                    ? { ...c, marked: !c.marked }
+                                    : c
+                                )
+                              )
+                            )
+                          }
+                        }}
+                        className={`aspect-square rounded font-bold transition ${
                           isCenter
                             ? 'bg-yellow-500 text-white'
                             : cell.marked
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-200'
+                            ? 'bg-green-600 text-white'
+                            : isConfirmed
+                            ? 'bg-gray-200'
+                            : 'bg-blue-100'
                         }`}
                       >
-                        {isCenter ? 'FREE' : cell.number || 'FREE'}
+                        {isCenter ? 'FREE' : cell.number}
                       </button>
                     )
                   })
                 )}
               </div>
 
-              <button
-                onClick={handleReset}
-                className="mt-4 px-6 py-3 bg-gray-500 text-white rounded"
-              >
-                Escanear outra
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {!isConfirmed && (
+                  <button
+                    onClick={() => setIsConfirmed(true)}
+                    className="px-6 py-3 bg-green-600 text-white rounded"
+                  >
+                    Confirmar cartela
+                  </button>
+                )}
+
+                {isConfirmed && (
+                  <>
+                    <button
+                      onClick={clearMarks}
+                      className="px-6 py-3 bg-yellow-500 text-white rounded"
+                    >
+                      Limpar marcações
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      className="px-6 py-3 bg-gray-500 text-white rounded"
+                    >
+                      Escanear outra
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* 🔴 MODAL */}
+      {/* MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-80">
@@ -213,5 +274,4 @@ export default function ScannerPage() {
       )}
     </div>
   )
-      }
-  
+}
