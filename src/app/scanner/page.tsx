@@ -224,7 +224,7 @@ export default function ScannerPage() {
                             : 'bg-blue-100'
                         }`}
                       >
-                        {isCenter ? 'FREE' : cell.number}
+                        {isCenter ? 'FREE' : cell.number || 'FREE'}
                       </button>
                     )
                   })
