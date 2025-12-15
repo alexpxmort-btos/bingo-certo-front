@@ -1,51 +1,44 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const OCR_API_URL = 'https://bingo-ocr.onrender.com/ocr/cartela'
 
 interface CardCell {
-  number: number;
-  marked: boolean;
+  number: number
+  marked: boolean
 }
 
 export default function ScannerPage() {
-  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scannedCard, setScannedCard] = useState<CardCell[][] | null>(null)
 
+  // Modal edição
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editValue, setEditValue] = useState('')
+  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null)
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setError('Por favor, selecione um arquivo de imagem')
-      return
-    }
+    if (!file || !file.type.startsWith('image/')) return
 
     setSelectedFile(file)
-    setError(null)
     setScannedCard(null)
+    setError(null)
 
-    // Criar preview
     const reader = new FileReader()
-    reader.onloadend = () => {
-      setPreview(reader.result as string)
-    }
+    reader.onloadend = () => setPreview(reader.result as string)
     reader.readAsDataURL(file)
   }
 
   const handleScan = async () => {
-    if (!selectedFile) {
-      setError('Por favor, selecione uma imagem primeiro')
-      return
-    }
+    if (!selectedFile) return
 
     setLoading(true)
     setError(null)
@@ -59,34 +52,15 @@ export default function ScannerPage() {
         body: formData,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Erro ao processar imagem' }))
-        throw new Error(errorData.message || 'Erro ao processar imagem')
-      }
-
       const data = await response.json()
-      console.log('Resposta da API:', data)
-      
-      // A API retorna uma matriz aninhada 5x5
-      if (!data.cartela || !Array.isArray(data.cartela) || data.cartela.length !== 5) {
-        throw new Error('Formato de resposta inválido da API. Esperado: { "cartela": [[...], [...], ...] }')
-      }
-      
-      // Converter a matriz aninhada para o formato de cartela
-      const card: CardCell[][] = data.cartela.map((row: number[]) => {
-        if (!Array.isArray(row) || row.length !== 5) {
-          throw new Error('Formato de linha inválido na resposta da API')
-        }
-        return row.map((number: number) => ({
-          number: number,
-          marked: false,
-        }))
-      })
-      
+
+      const card: CardCell[][] = data.cartela.map((row: number[]) =>
+        row.map((num: number) => ({ number: num, marked: false }))
+      )
+
       setScannedCard(card)
-    } catch (err: any) {
-      console.error('Erro ao escanear cartela:', err)
-      setError(err.message || 'Erro ao processar a imagem. Tente novamente.')
+    } catch {
+      setError('Erro ao escanear a cartela')
     } finally {
       setLoading(false)
     }
@@ -97,186 +71,147 @@ export default function ScannerPage() {
     setPreview(null)
     setScannedCard(null)
     setError(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // 🔵 Modal helpers
+  const openEditModal = (row: number, col: number, value: number) => {
+    if (row === 2 && col === 2) return // centro não edita
+    setEditingCell({ row, col })
+    setEditValue(value === 0 ? '' : String(value))
+    setIsModalOpen(true)
+  }
+
+  const saveEdit = () => {
+    if (!editingCell || !scannedCard) return
+    const num = Number(editValue)
+    if (isNaN(num) || num < 1 || num > 99) {
+      alert('Número inválido')
+      return
     }
+
+    setScannedCard(prev =>
+      prev!.map((row, i) =>
+        row.map((cell, j) =>
+          i === editingCell.row && j === editingCell.col
+            ? { number: num, marked: false }
+            : cell
+        )
+      )
+    )
+
+    setIsModalOpen(false)
+    setEditingCell(null)
+    setEditValue('')
   }
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <div className="flex justify-between mb-6">
             <h1 className="text-3xl font-bold">Scanner de Cartela</h1>
-            <Link
-              href="/"
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-            >
+            <Link href="/" className="px-4 py-2 bg-gray-500 text-white rounded">
               Voltar
             </Link>
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-              {error}
-            </div>
+          {error && <div className="bg-red-100 p-4 rounded mb-4">{error}</div>}
+
+          <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handleFileSelect} />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-6 py-3 bg-blue-600 text-white rounded"
+          >
+            Escolher imagem
+          </button>
+
+          {preview && <img src={preview} className="mt-4 rounded" />}
+
+          {selectedFile && !scannedCard && (
+            <button
+              onClick={handleScan}
+              className="mt-4 px-6 py-3 bg-green-600 text-white rounded"
+            >
+              {loading ? 'Processando...' : 'Escanear'}
+            </button>
           )}
 
-          <div className="space-y-6">
-            {/* Upload de imagem */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Selecione uma imagem da cartela
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="file-input"
-                />
-                <label
-                  htmlFor="file-input"
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition-colors"
-                >
-                  Escolher Imagem
-                </label>
-                {selectedFile && (
-                  <span className="text-gray-700">{selectedFile.name}</span>
+          {scannedCard && (
+            <div className="mt-6">
+              <div className="grid grid-cols-5 gap-2 mb-2">
+                {['B', 'I', 'N', 'G', 'O'].map(l => (
+                  <div key={l} className="text-center font-bold">{l}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-5 gap-2">
+                {scannedCard.map((row, i) =>
+                  row.map((cell, j) => {
+                    const isCenter = i === 2 && j === 2
+                    return (
+                      <button
+                        key={`${i}-${j}`}
+                        onClick={() => openEditModal(i, j, cell.number)}
+                        className={`aspect-square rounded font-bold ${
+                          isCenter
+                            ? 'bg-yellow-500 text-white'
+                            : cell.marked
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-200'
+                        }`}
+                      >
+                        {isCenter ? 'FREE' : cell.number || 'FREE'}
+                      </button>
+                    )
+                  })
                 )}
               </div>
+
+              <button
+                onClick={handleReset}
+                className="mt-4 px-6 py-3 bg-gray-500 text-white rounded"
+              >
+                Escanear outra
+              </button>
             </div>
-
-            {/* Preview da imagem */}
-            {preview && (
-              <div>
-                <h2 className="text-xl font-semibold mb-3">Preview da Imagem</h2>
-                <div className="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="max-w-full h-auto mx-auto rounded-lg"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Botões de ação */}
-            {selectedFile && !scannedCard && (
-              <div className="flex gap-4">
-                <button
-                  onClick={handleScan}
-                  disabled={loading}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Processando...' : 'Escanear Cartela'}
-                </button>
-                <button
-                  onClick={handleReset}
-                  disabled={loading}
-                  className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 disabled:opacity-50"
-                >
-                  Limpar
-                </button>
-              </div>
-            )}
-
-            {/* Cartela escaneada */}
-            {scannedCard && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Cartela Escaneada</h2>
-                <div className="bg-white border-2 border-gray-300 rounded-lg p-6">
-                  {/* Cabeçalho B I N G O */}
-                  <div className="grid grid-cols-5 gap-2 mb-2">
-                    {['B', 'I', 'N', 'G', 'O'].map((letter, idx) => (
-                      <div
-                        key={letter}
-                        className="aspect-square flex items-center justify-center rounded-lg font-bold text-2xl bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md"
-                      >
-                        {letter}
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Cartela */}
-                  <div className="grid grid-cols-5 gap-2">
-                    {scannedCard.map((row, i) =>
-                      row.map((cell, j) => {
-                        const isCenter = i === 2 && j === 2
-                        const isFree = cell.number === 0
-                        
-                        return (
-                          <button
-                            key={`${i}-${j}`}
-                            onClick={() => {
-                              if (!isCenter && !isFree) {
-                                // Toggle marcação
-                                setScannedCard((prev) => {
-                                  if (!prev) return null
-                                  const newCard = prev.map((r, ri) =>
-                                    r.map((c, cj) => {
-                                      if (ri === i && cj === j) {
-                                        return { ...c, marked: !c.marked }
-                                      }
-                                      return c
-                                    })
-                                  )
-                                  return newCard
-                                })
-                              }
-                            }}
-                            disabled={isCenter || isFree}
-                            className={`aspect-square flex items-center justify-center rounded-lg font-semibold text-lg transition-all ${
-                              isCenter || isFree
-                                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white font-bold cursor-default'
-                                : cell.marked
-                                ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
-                                : 'bg-gray-200 text-gray-800 hover:bg-gray-300 cursor-pointer'
-                            }`}
-                          >
-                            {isCenter || isFree ? 'FREE' : cell.number || '-'}
-                          </button>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-sm text-gray-600 mb-4">
-                    💡 Clique nos números para marcá-los como selecionados. O centro (FREE) não pode ser marcado.
-                  </p>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={handleReset}
-                      className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600"
-                    >
-                      Escanear Outra
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Limpar todas as marcações
-                        setScannedCard((prev) => {
-                          if (!prev) return null
-                          return prev.map((row) =>
-                            row.map((cell) => ({ ...cell, marked: false }))
-                          )
-                        })
-                      }}
-                      className="px-6 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600"
-                    >
-                      Limpar Marcações
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
+
+      {/* 🔴 MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg w-80">
+            <h2 className="text-lg font-bold mb-4">Editar número</h2>
+
+            <input
+              type="number"
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              className="w-full border p-2 rounded mb-4"
+              placeholder="Digite o número"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-gray-400 text-white rounded"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveEdit}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
-}
-
+      }
+  
