@@ -67,39 +67,21 @@ export default function ScannerPage() {
       const data = await response.json()
       console.log('Resposta da API:', data)
       
-      // Converter os dados da API para o formato de cartela
-      // A API pode retornar em diferentes formatos
-      let numbers: number[] = []
-      
-      if (data.cartela && Array.isArray(data.cartela)) {
-        numbers = data.cartela
-      } else if (data.numbers && Array.isArray(data.numbers)) {
-        numbers = data.numbers
-      } else if (data.cells && Array.isArray(data.cells)) {
-        numbers = data.cells.flat()
-      } else if (Array.isArray(data)) {
-        numbers = data
-      } else {
-        throw new Error('Formato de resposta inválido da API. Resposta: ' + JSON.stringify(data))
+      // A API retorna uma matriz aninhada 5x5
+      if (!data.cartela || !Array.isArray(data.cartela) || data.cartela.length !== 5) {
+        throw new Error('Formato de resposta inválido da API. Esperado: { "cartela": [[...], [...], ...] }')
       }
       
-      // Criar matriz 5x5 (25 números)
-      const card: CardCell[][] = []
-      for (let i = 0; i < 5; i++) {
-        const row: CardCell[] = []
-        for (let j = 0; j < 5; j++) {
-          const index = i * 5 + j
-          const number = numbers[index] || 0
-          row.push({
-            number: number,
-            marked: false,
-          })
+      // Converter a matriz aninhada para o formato de cartela
+      const card: CardCell[][] = data.cartela.map((row: number[]) => {
+        if (!Array.isArray(row) || row.length !== 5) {
+          throw new Error('Formato de linha inválido na resposta da API')
         }
-        card.push(row)
-      }
-      
-      // O centro (2,2) deve ser FREE
-      card[2][2].number = 0 // 0 indica FREE
+        return row.map((number: number) => ({
+          number: number,
+          marked: false,
+        }))
+      })
       
       setScannedCard(card)
     } catch (err: any) {
@@ -223,41 +205,71 @@ export default function ScannerPage() {
                     {scannedCard.map((row, i) =>
                       row.map((cell, j) => {
                         const isCenter = i === 2 && j === 2
+                        const isFree = cell.number === 0
+                        
                         return (
-                          <div
+                          <button
                             key={`${i}-${j}`}
-                            className={`aspect-square flex items-center justify-center rounded-lg font-semibold text-lg ${
-                              isCenter
-                                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white font-bold'
-                                : 'bg-gray-200 text-gray-800'
+                            onClick={() => {
+                              if (!isCenter && !isFree) {
+                                // Toggle marcação
+                                setScannedCard((prev) => {
+                                  if (!prev) return null
+                                  const newCard = prev.map((r, ri) =>
+                                    r.map((c, cj) => {
+                                      if (ri === i && cj === j) {
+                                        return { ...c, marked: !c.marked }
+                                      }
+                                      return c
+                                    })
+                                  )
+                                  return newCard
+                                })
+                              }
+                            }}
+                            disabled={isCenter || isFree}
+                            className={`aspect-square flex items-center justify-center rounded-lg font-semibold text-lg transition-all ${
+                              isCenter || isFree
+                                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white font-bold cursor-default'
+                                : cell.marked
+                                ? 'bg-green-500 text-white hover:bg-green-600 cursor-pointer'
+                                : 'bg-gray-200 text-gray-800 hover:bg-gray-300 cursor-pointer'
                             }`}
                           >
-                            {isCenter ? 'FREE' : cell.number || '-'}
-                          </div>
+                            {isCenter || isFree ? 'FREE' : cell.number || '-'}
+                          </button>
                         )
                       })
                     )}
                   </div>
                 </div>
 
-                <div className="mt-6 flex gap-4">
-                  <button
-                    onClick={handleReset}
-                    className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600"
-                  >
-                    Escanear Outra
-                  </button>
-                  <button
-                    onClick={() => {
-                      // Salvar cartela no localStorage para usar depois
-                      localStorage.setItem('scanned-card', JSON.stringify(scannedCard))
-                      alert('Cartela salva! Você pode usá-la ao criar uma sala.')
-                      router.push('/create-room')
-                    }}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-                  >
-                    Usar Esta Cartela
-                  </button>
+                <div className="mt-6">
+                  <p className="text-sm text-gray-600 mb-4">
+                    💡 Clique nos números para marcá-los como selecionados. O centro (FREE) não pode ser marcado.
+                  </p>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleReset}
+                      className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600"
+                    >
+                      Escanear Outra
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Limpar todas as marcações
+                        setScannedCard((prev) => {
+                          if (!prev) return null
+                          return prev.map((row) =>
+                            row.map((cell) => ({ ...cell, marked: false }))
+                          )
+                        })
+                      }}
+                      className="px-6 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600"
+                    >
+                      Limpar Marcações
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
