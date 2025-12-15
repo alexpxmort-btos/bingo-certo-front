@@ -19,7 +19,6 @@ export default function ScannerPage() {
   const [error, setError] = useState<string | null>(null)
   const [scannedCard, setScannedCard] = useState<CardCell[][] | null>(null)
 
-  // Controle
   const [isConfirmed, setIsConfirmed] = useState(false)
 
   // Modal edição
@@ -27,6 +26,9 @@ export default function ScannerPage() {
   const [editValue, setEditValue] = useState('')
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null)
 
+  /* =====================
+     FILE / CAMERA
+  ====================== */
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
@@ -41,6 +43,9 @@ export default function ScannerPage() {
     reader.readAsDataURL(file)
   }
 
+  /* =====================
+     OCR
+  ====================== */
   const handleScan = async () => {
     if (!selectedFile) return
 
@@ -80,20 +85,35 @@ export default function ScannerPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // Modal helpers
+  /* =====================
+     MODAL EDIT
+  ====================== */
   const openEditModal = (row: number, col: number, value: number) => {
     if (row === 2 && col === 2) return
     setEditingCell({ row, col })
-    setEditValue(value === 0 ? '' : String(value))
+    setEditValue(value ? String(value) : '')
     setIsModalOpen(true)
   }
 
   const saveEdit = () => {
     if (!editingCell || !scannedCard) return
-    const num = Number(editValue)
 
+    const num = Number(editValue)
     if (isNaN(num) || num < 1 || num > 99) {
       alert('Número inválido')
+      return
+    }
+
+    // 🔴 valida duplicado
+    const alreadyExists = scannedCard.some((row, i) =>
+      row.some((cell, j) =>
+        !(i === editingCell.row && j === editingCell.col) &&
+        cell.number === num
+      )
+    )
+
+    if (alreadyExists) {
+      alert('Esse número já existe na cartela')
       return
     }
 
@@ -119,6 +139,9 @@ export default function ScannerPage() {
     )
   }
 
+  /* =====================
+     RENDER
+  ====================== */
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -132,13 +155,12 @@ export default function ScannerPage() {
 
           {error && <div className="bg-red-100 p-4 rounded mb-4">{error}</div>}
 
-          {/* INPUT COM SUPORTE A CÂMERA */}
+          {/* INPUT */}
           <input
             ref={fileInputRef}
             type="file"
             hidden
             accept="image/*"
-            capture="environment"
             onChange={handleFileSelect}
           />
 
@@ -146,7 +168,7 @@ export default function ScannerPage() {
             onClick={() => fileInputRef.current?.click()}
             className="px-6 py-3 bg-blue-600 text-white rounded"
           >
-            Tirar foto / Escolher imagem
+            Tirar foto ou escolher da galeria
           </button>
 
           {preview && <img src={preview} className="mt-4 rounded max-h-96 mx-auto" />}
